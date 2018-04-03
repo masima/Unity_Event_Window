@@ -33,27 +33,56 @@ public class EventWindow : EditorWindow {
 	Dictionary<Component, SerializedObject> serializedObjectDictNext = new Dictionary<Component, SerializedObject>();
 
 	bool eventExistOnly = false;
+    bool activeOnly = false;
 
 	private void OnGUI()
 	{
-		GUI.skin.button.fixedHeight = 24;
-		GUI.skin.button.fontSize = 18;
-
-		var position = EditorGUILayout.BeginHorizontal();
-		eventExistOnly = EditorGUILayout.Toggle(eventExistOnly);
-		position.x += 16;
-		EditorGUI.LabelField(position, "Only Exist Event");
-		EditorGUILayout.EndHorizontal();
-
-
-		scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
-
 		if (isTypeGeted == false) {
 			isTypeGeted = true;
 			GetTargetClassMembers();
 		}
 
-		foreach (GameObject gameObject in FindObjectsOfType(typeof(GameObject)))
+
+		// Tool bar
+
+		GUI.skin.button.fixedHeight = 24;
+		GUI.skin.button.fontSize = 18;
+        float toolbarHeight = 16;
+
+        var position = new Rect();
+        position.width = 96;
+        position.height = toolbarHeight;
+		eventExistOnly = EditorGUI.Toggle(position, eventExistOnly);
+		position.x += 16;
+        position.width = 256;
+		EditorGUI.LabelField(position, "Only Exist Event");
+        position.x += 96;
+        //position.width = 16;
+        activeOnly = EditorGUI.Toggle(position, activeOnly);
+        position.x += 16;
+        //position.width = 256;
+        EditorGUI.LabelField(position, "Only Active");
+
+
+		// Contents
+
+        position.x = 0;
+		position.y = toolbarHeight;
+        position.width = Screen.width / EditorGUIUtility.pixelsPerPoint;
+        position.height = Screen.height / EditorGUIUtility.pixelsPerPoint - position.y - 22;
+
+        GUILayout.BeginArea(position);
+		scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
+
+        GameObject[] gameObjectAll;
+        if (activeOnly) {
+            gameObjectAll = (GameObject[])FindObjectsOfType(typeof(GameObject));
+        }
+        else {
+            gameObjectAll = (GameObject[])Resources.FindObjectsOfTypeAll(typeof(GameObject));
+
+        }
+		foreach (GameObject gameObject in gameObjectAll)
 		{
 			var components = gameObject.GetComponents(typeof(Component));
 			if (!components.Any(component => targetTypeDict.ContainsKey(component.GetType()))) {
@@ -93,6 +122,7 @@ public class EventWindow : EditorWindow {
 			}
 		}
 		EditorGUILayout.EndScrollView();
+        GUILayout.EndArea();
 
 
 		SwapSerializedObjectDict();
