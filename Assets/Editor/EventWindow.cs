@@ -85,7 +85,7 @@ public class EventWindow : EditorWindow {
 		foreach (GameObject gameObject in gameObjectAll)
 		{
 			var components = gameObject.GetComponents(typeof(Component));
-			if (!components.Any(component => targetTypeDict.ContainsKey(component.GetType()))) {
+			if (null == components || !components.Any(component => (null != component && null != targetTypeDict && targetTypeDict.ContainsKey(component.GetType())))) {
 				continue;
 			}
 			if (eventExistOnly) {
