@@ -31,81 +31,96 @@ public class EventWindow : EditorWindow {
 	Vector2 scrollPosition;
 	Dictionary<Component, SerializedObject> serializedObjectDict = new Dictionary<Component, SerializedObject>();
 	Dictionary<Component, SerializedObject> serializedObjectDictNext = new Dictionary<Component, SerializedObject>();
+	readonly List<GameObject> targetGameObjects = new List<GameObject>();
 
-	bool eventExistOnly = false;
-    bool activeOnly = false;
+	bool activeOnly = false;
 	bool showFullPath = true;
+
+	enum PickupEventType
+	{
+		All,
+		EventExist,
+		Missing,
+	}
+	PickupEventType pickupEvent = PickupEventType.All;
+
 
 	private void OnGUI()
 	{
 		if (isTypeGeted == false) {
 			isTypeGeted = true;
 			GetTargetClassMembers();
+			ListupTargetGameObjects();
 		}
 
 
 		// Tool bar
 
-		GUI.skin.button.fixedHeight = 24;
-		GUI.skin.button.fontSize = 18;
-        float toolbarHeight = 16;
+		GUI.skin.button.fixedHeight = 16;
+		GUI.skin.button.fontSize = 12;
+		var position = new Rect();
+		float toolbarHeight = 20;
 
-        var position = new Rect();
+		EditorGUI.BeginChangeCheck();
 		{
-			position.width = 96;
-			position.height = toolbarHeight;
-			eventExistOnly = EditorGUI.Toggle(position, eventExistOnly);
-			position.x += 16;
-			position.width = 256;
-			EditorGUI.LabelField(position, "Only Exist Event");
-		}
-		{
-			position.x += 96;
-			position.width = 16;
-			activeOnly = EditorGUI.Toggle(position, activeOnly);
-			position.x += 16;
-			position.width = 256;
-			EditorGUI.LabelField(position, "Only Active");
-		}
-		{
-			position.x += 96;
-			//position.width = 16;
-			showFullPath = EditorGUI.Toggle(position, showFullPath);
-			position.x += 16;
-			//position.width = 256;
-			EditorGUI.LabelField(position, "Show Full Path");
+			{
+				position.width = 96;
+				position.height = toolbarHeight;
+				EditorGUI.LabelField(position, "Event");
+				position.x += 48;
+				position.width = 96;
+				pickupEvent = (PickupEventType)EditorGUI.EnumPopup(position, pickupEvent);
 
+			}
+			{
+				position.x += 96 + 8;
+				position.width = 16;
+				activeOnly = EditorGUI.Toggle(position, activeOnly);
+				position.x += 16;
+				position.width = 256;
+				EditorGUI.LabelField(position, "Only Active");
+			}
+			{
+				position.x += 96;
+				//position.width = 16;
+				showFullPath = EditorGUI.Toggle(position, showFullPath);
+				position.x += 16;
+				//position.width = 256;
+				EditorGUI.LabelField(position, "Show Full Path");
+			}
+			{
+				var width = 64;
+				var height = 24;
+				position.x = Screen.width - width;
+				position.width = width;
+				position.height = height;
+				GUI.Button(position, "Update");
+			}
+		}
+		if (EditorGUI.EndChangeCheck())
+		{
+			ListupTargetGameObjects();
 		}
 
 
 		// Contents
 
+		GUI.skin.button.fixedHeight = 20;
+		GUI.skin.button.fontSize = 18;
+
 		position.x = 0;
 		position.y = toolbarHeight;
-        position.width = Screen.width / EditorGUIUtility.pixelsPerPoint;
-        position.height = Screen.height / EditorGUIUtility.pixelsPerPoint - position.y - 22;
+		position.width = Screen.width / EditorGUIUtility.pixelsPerPoint;
+		position.height = Screen.height / EditorGUIUtility.pixelsPerPoint - position.y - 22;
 
-        GUILayout.BeginArea(position);
+		GUILayout.BeginArea(position);
 		scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
 
-        GameObject[] gameObjectAll;
-        if (activeOnly) {
-            gameObjectAll = (GameObject[])FindObjectsOfType(typeof(GameObject));
-        }
-        else {
-            gameObjectAll = (GameObject[])Resources.FindObjectsOfTypeAll(typeof(GameObject));
-
-        }
-		foreach (GameObject gameObject in gameObjectAll)
+		foreach (var gameObject in targetGameObjects)
 		{
-			var components = gameObject.GetComponents(typeof(Component));
-			if (null == components || !components.Any(component => (null != component && null != targetTypeDict && targetTypeDict.ContainsKey(component.GetType())))) {
+			if (null == gameObject)
+			{
 				continue;
-			}
-			if (eventExistOnly) {
-				if (!components.Any(component => IsEventExist(component))) {
-					continue;
-				}
 			}
 
 			GUILayout.BeginHorizontal();
@@ -120,6 +135,7 @@ public class EventWindow : EditorWindow {
 			GUILayout.EndHorizontal();
 			GUILayout.BeginVertical("box");
 			{
+				var components = gameObject.GetComponents(typeof(Component));
 				foreach (var component in components)
 				{
 					EventMember eventMember;
@@ -153,13 +169,54 @@ public class EventWindow : EditorWindow {
 			GUILayout.EndVertical();
 		}
 		EditorGUILayout.EndScrollView();
-        GUILayout.EndArea();
+		GUILayout.EndArea();
 
 
 		SwapSerializedObjectDict();
 
 	}
 
+	/// <summary>
+	/// ターゲットとなるGameObjectリストアップ
+	/// </summary>
+	void ListupTargetGameObjects()
+	{
+		targetGameObjects.Clear();
+
+		GameObject[] gameObjectAll;
+		if (activeOnly)
+		{
+			gameObjectAll = (GameObject[])FindObjectsOfType(typeof(GameObject));
+		}
+		else
+		{
+			gameObjectAll = (GameObject[])Resources.FindObjectsOfTypeAll(typeof(GameObject));
+
+		}
+		foreach (GameObject gameObject in gameObjectAll)
+		{
+			var components = gameObject.GetComponents(typeof(Component));
+			if (null == components || !components.Any(component => (null != component && null != targetTypeDict && targetTypeDict.ContainsKey(component.GetType()))))
+			{
+				continue;
+			}
+			if (pickupEvent != PickupEventType.All)
+			{
+				if (!components.Any(component => IsEventExist(component)))
+				{
+					continue;
+				}
+			}
+			targetGameObjects.Add(gameObject);
+		}
+
+	}
+
+	/// <summary>
+	/// GameObjectの表示名称取得
+	/// </summary>
+	/// <param name="obj"></param>
+	/// <returns></returns>
 	string GetObjectName(GameObject obj)
 	{
 		if (showFullPath)
@@ -214,14 +271,14 @@ public class EventWindow : EditorWindow {
 					if (obj.GetType().IsSubclassOf(typeof(UnityEventBase))) {
 						var eventBase = (UnityEventBase)obj;
 						if (0 < eventBase.GetPersistentEventCount()) {
-							return true;
+							return IsEventExist(eventBase);
 						}
 					}
 					else if (obj.GetType() == typeof(List<EventTrigger.Entry>)) {
 						var list = (List<EventTrigger.Entry>)obj;
 						foreach (var entry in list) {
 							if (0 < entry.callback.GetPersistentEventCount()) {
-								return true;
+								return IsEventExist(entry.callback);
 							}
 						}
 					}
@@ -230,6 +287,47 @@ public class EventWindow : EditorWindow {
 		}
 		return false;
 	}
+
+	bool IsEventExist(UnityEventBase unityEvent)
+	{
+		for (int i = 0; i < unityEvent.GetPersistentEventCount(); i++)
+		{
+			var target = unityEvent.GetPersistentTarget(i);
+			if (pickupEvent == PickupEventType.Missing)
+			{
+				if (IsMissing(target))
+				{
+					return true;
+				}
+			}
+			else if (pickupEvent == PickupEventType.EventExist)
+			{
+				if (null != target)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	bool IsMissing(UnityEngine.Object obj)
+	{
+		try
+		{
+			var name = obj.name;
+		}
+		catch (MissingReferenceException)
+		{
+			return true;
+		}
+		catch
+		{
+			return false;
+		}
+		return false;
+	}
+
 
 	void SwapSerializedObjectDict()
 	{
