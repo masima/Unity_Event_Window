@@ -34,6 +34,7 @@ public class EventWindow : EditorWindow {
 
 	bool eventExistOnly = false;
     bool activeOnly = false;
+	bool showFullPath = true;
 
 	private void OnGUI()
 	{
@@ -50,23 +51,36 @@ public class EventWindow : EditorWindow {
         float toolbarHeight = 16;
 
         var position = new Rect();
-        position.width = 96;
-        position.height = toolbarHeight;
-		eventExistOnly = EditorGUI.Toggle(position, eventExistOnly);
-		position.x += 16;
-        position.width = 256;
-		EditorGUI.LabelField(position, "Only Exist Event");
-        position.x += 96;
-        //position.width = 16;
-        activeOnly = EditorGUI.Toggle(position, activeOnly);
-        position.x += 16;
-        //position.width = 256;
-        EditorGUI.LabelField(position, "Only Active");
+		{
+			position.width = 96;
+			position.height = toolbarHeight;
+			eventExistOnly = EditorGUI.Toggle(position, eventExistOnly);
+			position.x += 16;
+			position.width = 256;
+			EditorGUI.LabelField(position, "Only Exist Event");
+		}
+		{
+			position.x += 96;
+			position.width = 16;
+			activeOnly = EditorGUI.Toggle(position, activeOnly);
+			position.x += 16;
+			position.width = 256;
+			EditorGUI.LabelField(position, "Only Active");
+		}
+		{
+			position.x += 96;
+			//position.width = 16;
+			showFullPath = EditorGUI.Toggle(position, showFullPath);
+			position.x += 16;
+			//position.width = 256;
+			EditorGUI.LabelField(position, "Show Full Path");
+
+		}
 
 
 		// Contents
 
-        position.x = 0;
+		position.x = 0;
 		position.y = toolbarHeight;
         position.width = Screen.width / EditorGUIUtility.pixelsPerPoint;
         position.height = Screen.height / EditorGUIUtility.pixelsPerPoint - position.y - 22;
@@ -94,32 +108,49 @@ public class EventWindow : EditorWindow {
 				}
 			}
 
-			if (GUILayout.Button(gameObject.name)) {
-				Selection.activeGameObject = gameObject;
+			GUILayout.BeginHorizontal();
+			{
+				if (GUILayout.Button("‘I‘ð"))
+				{
+					Selection.activeGameObject = gameObject;
+				}
+				GUILayout.Label(GetObjectName(gameObject));
+				GUILayout.FlexibleSpace();
 			}
-			foreach (var component in components) {
-				EventMember eventMember;
-				if (targetTypeDict.TryGetValue(component.GetType(), out eventMember)) {
-					SerializedObject so;
-					if (!serializedObjectDict.TryGetValue(component, out so)) {
-						so = new SerializedObject(component);
-					}
-					so.Update();
-					serializedObjectDictNext[component] = so;
+			GUILayout.EndHorizontal();
+			GUILayout.BeginVertical("box");
+			{
+				foreach (var component in components)
+				{
+					EventMember eventMember;
+					if (targetTypeDict.TryGetValue(component.GetType(), out eventMember))
+					{
+						SerializedObject so;
+						if (!serializedObjectDict.TryGetValue(component, out so))
+						{
+							so = new SerializedObject(component);
+						}
+						so.Update();
+						serializedObjectDictNext[component] = so;
 
-					EditorGUILayout.LabelField(component.GetType().Name);
-					foreach (var member in eventMember.members) {
-						var prop = so.FindProperty(member);
-						if (prop != null) {
-							EditorGUILayout.PropertyField(prop, includeChildren: true);
+						EditorGUILayout.LabelField(component.GetType().Name);
+						foreach (var member in eventMember.members)
+						{
+							var prop = so.FindProperty(member);
+							if (prop != null)
+							{
+								EditorGUILayout.PropertyField(prop, includeChildren: true);
+							}
+							else
+							{
+								EditorGUILayout.LabelField("not find class:" + component.GetType() + " property:" + member);
+							}
 						}
-						else {
-							EditorGUILayout.LabelField("not find class:" + component.GetType() + " property:" + member);
-						}
+						so.ApplyModifiedProperties();
 					}
-					so.ApplyModifiedProperties();
 				}
 			}
+			GUILayout.EndVertical();
 		}
 		EditorGUILayout.EndScrollView();
         GUILayout.EndArea();
@@ -127,6 +158,27 @@ public class EventWindow : EditorWindow {
 
 		SwapSerializedObjectDict();
 
+	}
+
+	string GetObjectName(GameObject obj)
+	{
+		if (showFullPath)
+		{
+			return GetFullPath(obj);
+		}
+		return obj.name;
+	}
+	string GetFullPath(GameObject obj)
+	{
+		var stack = new Stack<string>();
+		var current = obj.transform;
+		while (null != current)
+		{
+			stack.Push(current.name);
+			current = current.parent;
+		}
+		var path = string.Join("/", stack.ToArray());
+		return path;
 	}
 
 	bool IsEventExist(Component component)
@@ -145,7 +197,7 @@ public class EventWindow : EditorWindow {
 		foreach (var member in eventMember.members) {
 			var members = type.GetMember(member, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 			if (members == null || members.Length == 0) {
-				EditorGUILayout.LabelField("not found member:" + member);
+				//EditorGUILayout.LabelField("not found member:" + member);
 			}
 			else {
 				var m = members[0];
