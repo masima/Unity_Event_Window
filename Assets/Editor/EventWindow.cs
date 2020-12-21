@@ -74,18 +74,18 @@ public class EventWindow : EditorWindow {
 			}
 			{
 				position.x += 96 + 8;
-				position.width = 16;
+				position.width = 96;
 				activeOnly = EditorGUI.Toggle(position, activeOnly);
 				position.x += 16;
-				position.width = 256;
+				position.width = 96;
 				EditorGUI.LabelField(position, "Only Active");
 			}
 			{
 				position.x += 96;
-				//position.width = 16;
+				position.width = 96;
 				showFullPath = EditorGUI.Toggle(position, showFullPath);
 				position.x += 16;
-				//position.width = 256;
+				position.width = 96;
 				EditorGUI.LabelField(position, "Show Full Path");
 			}
 			{
